@@ -1,0 +1,3 @@
+[submodule "SIH_FRONTEND/SIH_FRONTEND/FRONTEND_SUB_FOLDER"]
+	path = SIH_FRONTEND/SIH_FRONTEND/FRONTEND_SUB_FOLDER
+	url = https://github.com/MayurAnkushrao/comment-sentiment-analysis.git
