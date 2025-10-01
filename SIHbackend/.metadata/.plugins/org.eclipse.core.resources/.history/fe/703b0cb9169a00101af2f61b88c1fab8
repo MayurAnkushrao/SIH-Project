@@ -1,0 +1,218 @@
+package com.sih.SIHbackend.entity;
+
+
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "sentiment_analysis")
+public class SentimentAnalysis {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @NotNull
+    @Column(name = "post_id", nullable = false)
+    private Long postId;
+    
+    @Min(0)
+    @Column(name = "total_comments", columnDefinition = "INTEGER DEFAULT 0")
+    private Integer totalComments = 0;
+    
+    @Min(0)
+    @Column(name = "positive_count", columnDefinition = "INTEGER DEFAULT 0")
+    private Integer positiveCount = 0;
+    
+    @Min(0)
+    @Column(name = "negative_count", columnDefinition = "INTEGER DEFAULT 0")
+    private Integer negativeCount = 0;
+    
+    @Min(0)
+    @Column(name = "neutral_count", columnDefinition = "INTEGER DEFAULT 0")
+    private Integer neutralCount = 0;
+    
+    @DecimalMin(value = "0.00")
+    @DecimalMax(value = "100.00")
+    @Column(name = "positive_percentage", precision = 5, scale = 2, columnDefinition = "DECIMAL(5,2) DEFAULT 0")
+    private BigDecimal positivePercentage = BigDecimal.ZERO;
+    
+    @DecimalMin(value = "0.00")
+    @DecimalMax(value = "100.00")
+    @Column(name = "negative_percentage", precision = 5, scale = 2, columnDefinition = "DECIMAL(5,2) DEFAULT 0")
+    private BigDecimal negativePercentage = BigDecimal.ZERO;
+    
+    @DecimalMin(value = "0.00")
+    @DecimalMax(value = "100.00")
+    @Column(name = "neutral_percentage", precision = 5, scale = 2, columnDefinition = "DECIMAL(5,2) DEFAULT 0")
+    private BigDecimal neutralPercentage = BigDecimal.ZERO;
+    
+    @Column(name = "summary", columnDefinition = "TEXT")
+    private String summary;
+    
+    @Column(name = "keywords", columnDefinition = "TEXT")
+    private String keywords;
+    
+    @Column(name = "analyzed_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    private LocalDateTime analyzedAt;
+    
+    // Foreign key relationship to Posts entity
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", referencedColumnName = "id", insertable = false, updatable = false)
+    private Post post;
+    
+    // Default constructor (required by JPA)
+    public SentimentAnalysis() {
+        this.analyzedAt = LocalDateTime.now();
+    }
+    
+    // Constructor with essential fields
+    public SentimentAnalysis(Long postId, Integer totalComments) {
+        this();
+        this.postId = postId;
+        this.totalComments = totalComments;
+    }
+    
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public Long getPostId() {
+        return postId;
+    }
+    
+    public void setPostId(Long postId) {
+        this.postId = postId;
+    }
+    
+    public Integer getTotalComments() {
+        return totalComments;
+    }
+    
+    public void setTotalComments(Integer totalComments) {
+        this.totalComments = totalComments;
+    }
+    
+    public Integer getPositiveCount() {
+        return positiveCount;
+    }
+    
+    public void setPositiveCount(Integer positiveCount) {
+        this.positiveCount = positiveCount;
+    }
+    
+    public Integer getNegativeCount() {
+        return negativeCount;
+    }
+    
+    public void setNegativeCount(Integer negativeCount) {
+        this.negativeCount = negativeCount;
+    }
+    
+    public Integer getNeutralCount() {
+        return neutralCount;
+    }
+    
+    public void setNeutralCount(Integer neutralCount) {
+        this.neutralCount = neutralCount;
+    }
+    
+    public BigDecimal getPositivePercentage() {
+        return positivePercentage;
+    }
+    
+    public void setPositivePercentage(BigDecimal positivePercentage) {
+        this.positivePercentage = positivePercentage;
+    }
+    
+    public BigDecimal getNegativePercentage() {
+        return negativePercentage;
+    }
+    
+    public void setNegativePercentage(BigDecimal negativePercentage) {
+        this.negativePercentage = negativePercentage;
+    }
+    
+    public BigDecimal getNeutralPercentage() {
+        return neutralPercentage;
+    }
+    
+    public void setNeutralPercentage(BigDecimal neutralPercentage) {
+        this.neutralPercentage = neutralPercentage;
+    }
+    
+    public String getSummary() {
+        return summary;
+    }
+    
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
+    
+    public String getKeywords() {
+        return keywords;
+    }
+    
+    public void setKeywords(String keywords) {
+        this.keywords = keywords;
+    }
+    
+    public LocalDateTime getAnalyzedAt() {
+        return analyzedAt;
+    }
+    
+    public void setAnalyzedAt(LocalDateTime analyzedAt) {
+        this.analyzedAt = analyzedAt;
+    }
+    
+    public Post getPost() {
+        return post;
+    }
+    
+    public void setPost(Post post) {
+        this.post = post;
+    }
+    
+    // Utility method to calculate percentages
+    public void calculatePercentages() {
+        if (totalComments > 0) {
+            BigDecimal total = new BigDecimal(totalComments);
+            this.positivePercentage = new BigDecimal(positiveCount)
+                .multiply(new BigDecimal("100"))
+                .divide(total, 2, BigDecimal.ROUND_HALF_UP);
+            this.negativePercentage = new BigDecimal(negativeCount)
+                .multiply(new BigDecimal("100"))
+                .divide(total, 2, BigDecimal.ROUND_HALF_UP);
+            this.neutralPercentage = new BigDecimal(neutralCount)
+                .multiply(new BigDecimal("100"))
+                .divide(total, 2, BigDecimal.ROUND_HALF_UP);
+        }
+    }
+    
+    @Override
+    public String toString() {
+        return "SentimentAnalysis{" +
+                "id=" + id +
+                ", postId=" + postId +
+                ", totalComments=" + totalComments +
+                ", positiveCount=" + positiveCount +
+                ", negativeCount=" + negativeCount +
+                ", neutralCount=" + neutralCount +
+                ", positivePercentage=" + positivePercentage +
+                ", negativePercentage=" + negativePercentage +
+                ", neutralPercentage=" + neutralPercentage +
+                ", analyzedAt=" + analyzedAt +
+                '}';
+    }
+}

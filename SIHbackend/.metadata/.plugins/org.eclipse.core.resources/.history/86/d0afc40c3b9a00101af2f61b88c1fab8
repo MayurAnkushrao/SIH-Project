@@ -1,0 +1,172 @@
+package com.sih.SIHbackend.serviceImpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import com.sih.SIHbackend.dto.request.PostRequest;
+import com.sih.SIHbackend.dto.response.PostResponse;
+import com.sih.SIHbackend.entity.Post;
+import com.sih.SIHbackend.entity.User;
+import com.sih.SIHbackend.enums.PostStatus;
+import com.sih.SIHbackend.repository.PostRepository;
+import com.sih.SIHbackend.repository.SentimentAnalysisRepository;
+import com.sih.SIHbackend.repository.UserRepository;
+import com.sih.SIHbackend.service.PostService;
+
+import jakarta.transaction.Transactional;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+public class PostServiceImpl implements PostService {
+    
+    @Autowired
+    private PostRepository postRepository;
+    
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Autowired
+    private SentimentAnalysisRepository sentimentAnalysisRepository;
+    
+    @Override
+    public PostResponse createPost(PostRequest request/*, String userEmail*/) {
+       /* User user = userRepository.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));*/
+        
+        Post post = new Post();
+        post.setTitle(request.getTitle());
+        post.setDescription(request.getDescription());
+        post.setDeadline(request.getDeadline());
+        post.setAuthor(request.getAuthor());
+        post.setStatus(request.getStatus());
+        //post.setCreatedBy(user);
+        
+        Post savedPost = postRepository.save(post);
+        return convertToResponse(savedPost);
+    }
+    
+    @Override
+    public PostResponse getPostById(Long id) {
+        Post post = postRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Post not found"));
+        return convertToResponse(post);
+    }
+    
+    @Override
+    public Page<PostResponse> getAllPosts(Pageable pageable) {
+        Page<Post> posts = postRepository.findAll(pageable);
+        List<PostResponse> responses = posts.getContent().stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+        return new PageImpl<>(responses, pageable, posts.getTotalElements());
+    }
+    
+    @Override
+    public Page<PostResponse> getActivePosts(Pageable pageable) {
+        Page<Post> posts = postRepository.findActivePosts(pageable);
+        List<PostResponse> responses = posts.getContent().stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+        return new PageImpl<>(responses, pageable, posts.getTotalElements());
+    }
+    
+    @Override
+    public List<PostResponse> getExpiredPosts() {
+        List<Post> posts = postRepository.findExpiredPosts();
+        return posts.stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public Page<PostResponse> getPostsByStatus(PostStatus status, Pageable pageable) {
+        Page<Post> posts = postRepository.findByStatus(status, pageable);
+        List<PostResponse> responses = posts.getContent().stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+        return new PageImpl<>(responses, pageable, posts.getTotalElements());
+    }
+    
+    @Override
+    public Page<PostResponse> getPostsByAuthor(String author, Pageable pageable) {
+        Page<Post> posts = postRepository.findByAuthor(author, pageable);
+        List<PostResponse> responses = posts.getContent().stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+        return new PageImpl<>(responses, pageable, posts.getTotalElements());
+    }
+    
+    @Override
+    public Page<PostResponse> searchPosts(String keyword, Pageable pageable) {
+        Page<Post> posts = postRepository.searchByKeyword(keyword, pageable);
+        List<PostResponse> responses = posts.getContent().stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+        return new PageImpl<>(responses, pageable, posts.getTotalElements());
+    }
+    
+    @Override
+    public PostResponse updatePost(Long id, PostRequest request, String userEmail) {
+        Post post = postRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Post not found"));
+        
+        post.setTitle(request.getTitle());
+        post.setDescription(request.getDescription());
+        post.setDeadline(request.getDeadline());
+        post.setAuthor(request.getAuthor());
+        post.setStatus(request.getStatus());
+        
+        Post updatedPost = postRepository.save(post);
+        return convertToResponse(updatedPost);
+    }
+    
+    @Override
+    public PostResponse updatePostStatus(Long id, PostStatus status) {
+        Post post = postRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Post not found"));
+        
+        post.setStatus(status);
+        Post updatedPost = postRepository.save(post);
+        return convertToResponse(updatedPost);
+    }
+    
+    @Override
+    public void deletePost(Long id) {
+        if (!postRepository.existsById(id)) {
+            throw new RuntimeException("Post not found");
+        }
+        postRepository.deleteById(id);
+    }
+    
+    @Override
+    public int getCommentsCount(Long postId) {
+        Post post = postRepository.findById(postId)
+            .orElseThrow(() -> new RuntimeException("Post not found"));
+        return post.getCommentCount();
+    }
+    
+    private PostResponse convertToResponse(Post post) {
+        boolean hasAnalysis = sentimentAnalysisRepository.existsByPost_Id(post.getId());
+        
+        return new PostResponse(
+            post.getId(),
+            post.getTitle(),
+            post.getDescription(),
+            post.getDeadline(),
+            post.getAuthor(),
+            post.getStatus(),
+            post.getCreatedBy().getId(),
+            post.getCreatedBy().getName(),
+            post.getCreatedBy().getEmail(),
+            post.getCreatedAt(),
+            post.getUpdatedAt(),
+            post.getCommentCount(),
+            hasAnalysis
+        );
+    }
+}

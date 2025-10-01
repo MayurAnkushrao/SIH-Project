@@ -1,0 +1,5 @@
+package com.sih.SIHbackend.dto.request;
+
+public class SentimentRequest {
+
+}

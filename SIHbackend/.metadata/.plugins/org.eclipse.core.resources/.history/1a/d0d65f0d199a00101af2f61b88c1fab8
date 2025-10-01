@@ -1,0 +1,35 @@
+package com.sih.SIHbackend.controller;
+
+@RestController
+@RequestMapping("/api/posts")
+@CrossOrigin(origins = "*")
+public class PostController {
+    
+    @GetMapping
+    public ResponseEntity<List<PostResponse>> getAllPosts() {
+        // Implementation
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<PostResponse> getPostById(@PathVariable Long id) {
+        // Implementation
+    }
+    
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest request) {
+        // Implementation
+    }
+    
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest request) {
+        // Implementation
+    }
+    
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> deletePost(@PathVariable Long id) {
+        // Implementation
+    }
+}

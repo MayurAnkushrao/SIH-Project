@@ -1,0 +1,56 @@
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import com.sih.SIHbackend.dto.request.LoginRequest;
+import com.sih.SIHbackend.dto.request.RegisterRequest;
+import com.sih.SIHbackend.dto.response.AuthResponse;
+import com.sih.SIHbackend.service.AuthService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
+@Validated
+public class AuthController {
+
+    @Autowired
+    private AuthService authService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @PostMapping(value = "/login", consumes = {"application/json", "text/plain"})
+    public ResponseEntity<AuthResponse> loginUser(@RequestBody String body) {
+        try {
+            LoginRequest loginRequest = objectMapper.readValue(body, LoginRequest.class);
+            AuthResponse response = authService.login(loginRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            AuthResponse errorResponse = new AuthResponse(
+                null, null, null, null, null, null, "Login failed: " + e.getMessage());
+            return ResponseEntity.status(400).body(errorResponse);
+        }
+    }
+
+    @PostMapping(value = "/register", consumes = {"application/json", "text/plain"})
+    public ResponseEntity<AuthResponse> registerUser(@RequestBody String body) {
+        try {
+            RegisterRequest registerRequest = objectMapper.readValue(body, RegisterRequest.class);
+            AuthResponse response = authService.register(registerRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            AuthResponse errorResponse = new AuthResponse(
+                null, null, null, null, null, null, "Registration failed: " + e.getMessage());
+            return ResponseEntity.status(400).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<AuthResponse> logoutUser() {
+        AuthResponse response = authService.logout();
+        return ResponseEntity.ok(response);
+    }
+}

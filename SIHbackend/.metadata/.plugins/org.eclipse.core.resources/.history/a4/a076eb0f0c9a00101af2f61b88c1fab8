@@ -1,0 +1,5 @@
+package com.sih.SIHbackend.entity;
+
+public class Comment {
+
+}

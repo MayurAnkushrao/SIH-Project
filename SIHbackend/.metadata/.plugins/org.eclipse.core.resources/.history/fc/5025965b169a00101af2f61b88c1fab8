@@ -1,0 +1,37 @@
+package com.sih.SIHbackend.entity;
+
+@Entity
+@Table(name = "comments")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Comment {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    private Post post;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @Lob
+    @Column(nullable = false)
+    private String content;
+    
+    @Enumerated(EnumType.STRING)
+    private SentimentType sentiment;
+    
+    @Column(precision = 3, scale = 2)
+    private BigDecimal confidenceScore;
+    
+    @CreationTimestamp
+    private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}
+

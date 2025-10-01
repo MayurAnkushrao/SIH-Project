@@ -1,0 +1,111 @@
+package com.sih.SIHbackend.serviceImpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.sih.SIHbackend.entity.Comment;
+import com.sih.SIHbackend.entity.SentimentAnalysis;
+import com.sih.SIHbackend.repository.CommentRepository;
+import com.sih.SIHbackend.repository.SentimentAnalysisRepository;
+import com.sih.SIHbackend.service.SentimentService;
+import com.sih.SIHbackend.dto.SentimentRequest;
+import com.sih.SIHbackend.dto.SentimentMLResponse;
+
+import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+public class SentimentServiceImpl implements SentimentService {
+    
+    @Autowired
+    private RestTemplate restTemplate;
+    
+    @Autowired
+    private CommentRepository commentRepository;
+    
+    @Autowired
+    private SentimentAnalysisRepository sentimentAnalysisRepository;
+    
+    @Override
+    public SentimentAnalysis analyzeSentiment(Long postId) {
+        List<Comment> comments = commentRepository.findByPostId(postId);
+        
+        if (comments.isEmpty()) {
+            return createEmptySentimentAnalysis(postId);
+        }
+        
+        // Extract comment texts for ML analysis
+        List<String> commentTexts = comments.stream()
+            .map(Comment::getContent)
+            .collect(Collectors.toList());
+            
+        // API call to sentiment analysis service
+        SentimentRequest mlRequest = new SentimentRequest(commentTexts);
+        ResponseEntity<SentimentMLResponse> mlResponse = 
+            restTemplate.postForEntity("http://localhost:8080/ml/sentiment", mlRequest, SentimentMLResponse.class);
+        
+        // Process results and save to database
+        return processSentimentResults(postId, comments, mlResponse.getBody());
+    }
+    
+    private SentimentAnalysis processSentimentResults(Long postId, List<Comment> comments, SentimentMLResponse mlResponse) {
+        SentimentAnalysis analysis = new SentimentAnalysis();
+        analysis.setPostId(postId);
+        analysis.setTotalComments(comments.size());
+        analysis.setAnalyzedAt(LocalDateTime.now());
+        
+        // Set counts from ML response
+        analysis.setPositiveCount(mlResponse.getPositiveCount());
+        analysis.setNegativeCount(mlResponse.getNegativeCount());
+        analysis.setNeutralCount(mlResponse.getNeutralCount());
+        
+        // Calculate percentages
+        analysis.calculatePercentages();
+        
+        // Set summary and keywords from ML response
+        analysis.setSummary(mlResponse.getSummary());
+        analysis.setKeywords(String.join(", ", mlResponse.getKeywords()));
+        
+        // Save to database
+        return sentimentAnalysisRepository.save(analysis);
+    }
+    
+    private SentimentAnalysis createEmptySentimentAnalysis(Long postId) {
+        SentimentAnalysis analysis = new SentimentAnalysis();
+        analysis.setPostId(postId);
+        analysis.setTotalComments(0);
+        analysis.setPositiveCount(0);
+        analysis.setNegativeCount(0);
+        analysis.setNeutralCount(0);
+        analysis.setPositivePercentage(BigDecimal.ZERO);
+        analysis.setNegativePercentage(BigDecimal.ZERO);
+        analysis.setNeutralPercentage(BigDecimal.ZERO);
+        analysis.setSummary("No comments available for analysis");
+        analysis.setKeywords("");
+        analysis.setAnalyzedAt(LocalDateTime.now());
+        
+        return sentimentAnalysisRepository.save(analysis);
+    }
+    
+    @Override
+    public SentimentAnalysis getSentimentByPostId(Long postId) {
+        return sentimentAnalysisRepository.findByPostId(postId)
+            .orElse(null);
+    }
+    
+    @Override
+    public List<SentimentAnalysis> getAllSentimentAnalyses() {
+        return sentimentAnalysisRepository.findAll();
+    }
+    
+    @Override
+    public void deleteSentimentAnalysis(Long analysisId) {
+        sentimentAnalysisRepository.deleteById(analysisId);
+    }
+}

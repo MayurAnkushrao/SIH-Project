@@ -1,0 +1,137 @@
+package com.sih.SIHbackend.serviceImpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.sih.SIHbackend.config.JwtTokenProvider;
+import com.sih.SIHbackend.dto.request.LoginRequest;
+import com.sih.SIHbackend.dto.request.RegisterRequest;
+import com.sih.SIHbackend.dto.response.AuthResponse;
+import com.sih.SIHbackend.entity.User;
+import com.sih.SIHbackend.enums.UserRole;
+import com.sih.SIHbackend.repository.UserRepository;
+import com.sih.SIHbackend.service.AuthService;
+
+import jakarta.transaction.Transactional;
+
+@Service
+@Transactional
+public class AuthServiceImpl implements AuthService {
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Autowired
+	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private AuthenticationManager authenticationManager;
+
+	@Autowired
+	private JwtTokenProvider jwtTokenProvider;
+
+	@Override
+	public AuthResponse login(LoginRequest request) {
+		try {
+			// Authenticate the user
+			Authentication authentication = authenticationManager
+					.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+
+			// Generate JWT token
+			String token = jwtTokenProvider.generateToken(authentication);
+
+			// Get user details
+			User user = findByEmail(request.getEmail());
+
+			// Create and return response
+			return new AuthResponse(token, "Bearer", user.getId(), user.getEmail(), user.getName(), // Using single name
+																									// field as per your
+																									// entity
+					user.getRole().name(), // Converting enum to string
+					"Login successful");
+
+		} catch (BadCredentialsException e) {
+			throw new RuntimeException("Invalid email or password");
+		} catch (Exception e) {
+			throw new RuntimeException("Authentication failed: " + e.getMessage());
+		}
+	}
+
+	@Override
+	public AuthResponse register(RegisterRequest request) {
+		try {
+			// Check if user already exists
+			if (existsByEmail(request.getEmail())) {
+				throw new RuntimeException("Email already registered");
+			}
+
+			// Validate password confirmation
+			if (!request.getPassword().equals(request.getConfirmPassword())) {
+				throw new IllegalArgumentException("Password and confirm password do not match");
+			}
+
+			// Create new user using your entity structure
+			User user = new User();
+			user.setName(request.getName()); // Single name field
+			user.setEmail(request.getEmail());
+			user.setPassword(passwordEncoder.encode(request.getPassword()));
+			user.setOrganization(request.getOrganization());
+
+			// Set role - default to USER or from request
+			UserRole userRole = UserRole.USER;
+			if (request.getRole() != null && !request.getRole().isEmpty()) {
+				try {
+					userRole = UserRole.valueOf(request.getRole().toUpperCase());
+				} catch (IllegalArgumentException e) {
+					userRole = UserRole.USER; // Default fallback
+				}
+			}
+			user.setRole(userRole);
+
+			// Save user (timestamps handled by @CreationTimestamp/@UpdateTimestamp)
+			User savedUser = userRepository.save(user);
+
+			// Authenticate the newly registered user
+			Authentication authentication = authenticationManager
+					.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+
+			// Generate JWT token
+			String token = jwtTokenProvider.generateToken(authentication);
+
+			// Create and return response
+			return new AuthResponse(token, "Bearer", savedUser.getId(), savedUser.getEmail(), savedUser.getName(),
+					savedUser.getRole().name(), "Registration successful");
+
+		} catch (Exception e) {
+			throw new RuntimeException("Registration failed: " + e.getMessage());
+		}
+	}
+
+	@Override
+	public User findByEmail(String email) {
+		return userRepository.findByEmail(email)
+				.orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+	}
+
+	@Override
+	public boolean existsByEmail(String email) {
+		return userRepository.existsByEmail(email);
+	}
+
+	@Override
+	public void logout() {
+		// Clear the security context
+		SecurityContextHolder.clearContext();
+		// In JWT stateless implementation, actual logout is handled client-side
+	}
+
+	
+
+	
+}

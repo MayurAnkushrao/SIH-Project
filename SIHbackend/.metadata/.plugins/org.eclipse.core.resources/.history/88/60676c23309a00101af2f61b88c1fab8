@@ -1,0 +1,65 @@
+package com.sih.SIHbackend.repository;
+
+import com.sih.SIHbackend.entity.Post;
+import com.sih.SIHbackend.entity.SentimentAnalysis;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface SentimentAnalysisRepository extends JpaRepository<SentimentAnalysis, Long> {
+    
+    // ✅ Method to check if analysis exists for a post by ID
+	boolean existsByPost_Id(Long postId);
+
+    
+    // Find by post entity
+    Optional<SentimentAnalysis> findByPost(Post post);
+    
+    // Find by post ID
+    @Query("SELECT sa FROM SentimentAnalysis sa WHERE sa.post.id = :postId")
+    Optional<SentimentAnalysis> findByPostId(@Param("postId") Long postId);
+    
+    // Delete by post ID
+    @Query("DELETE FROM SentimentAnalysis sa WHERE sa.post.id = :postId")
+    void deleteByPostId(@Param("postId") Long postId);
+    
+    // Find analyses with positive percentage above threshold
+    @Query("SELECT sa FROM SentimentAnalysis sa WHERE sa.positivePercentage >= :threshold")
+    List<SentimentAnalysis> findByPositivePercentageGreaterThanEqual(@Param("threshold") BigDecimal threshold);
+    
+    // Find analyses with negative percentage above threshold
+    @Query("SELECT sa FROM SentimentAnalysis sa WHERE sa.negativePercentage >= :threshold")
+    List<SentimentAnalysis> findByNegativePercentageGreaterThanEqual(@Param("threshold") BigDecimal threshold);
+    
+    // Find analyses by total comments range
+    List<SentimentAnalysis> findByTotalCommentsBetween(Integer minComments, Integer maxComments);
+    
+    // Count total analyses
+    @Query("SELECT COUNT(sa) FROM SentimentAnalysis sa")
+    Long countTotalAnalyses();
+    
+    // Find recent analyses
+    @Query("SELECT sa FROM SentimentAnalysis sa ORDER BY sa.analyzedAt DESC")
+    List<SentimentAnalysis> findRecentAnalyses(org.springframework.data.domain.Pageable pageable);
+    
+    // Find analyses by dominant sentiment (based on highest percentage)
+    @Query("SELECT sa FROM SentimentAnalysis sa WHERE " +
+           "(sa.positivePercentage >= sa.negativePercentage AND sa.positivePercentage >= sa.neutralPercentage) OR " +
+           "(sa.negativePercentage >= sa.positivePercentage AND sa.negativePercentage >= sa.neutralPercentage) OR " +
+           "(sa.neutralPercentage >= sa.positivePercentage AND sa.neutralPercentage >= sa.negativePercentage)")
+    List<SentimentAnalysis> findAnalysesWithDominantSentiment();
+    
+    // Find analyses with summary containing keyword
+    @Query("SELECT sa FROM SentimentAnalysis sa WHERE LOWER(sa.summary) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<SentimentAnalysis> findBySummaryContaining(@Param("keyword") String keyword);
+    
+    // Find analyses with keywords containing specific term
+    @Query("SELECT sa FROM SentimentAnalysis sa WHERE LOWER(sa.keywords) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<SentimentAnalysis> findByKeywordsContaining(@Param("keyword") String keyword);
+}

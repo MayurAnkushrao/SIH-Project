@@ -1,0 +1,30 @@
+package com.sih.SIHbackend.controller;
+
+@RestController
+@RequestMapping("/api/comments")
+@CrossOrigin(origins = "*")
+public class CommentController {
+    
+    @GetMapping("/post/{postId}")
+    public ResponseEntity<List<CommentResponse>> getCommentsByPost(@PathVariable Long postId) {
+        // Implementation
+    }
+    
+    @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<CommentResponse> createComment(@Valid @RequestBody CommentRequest request) {
+        // Implementation
+    }
+    
+    @PutMapping("/{id}")
+    @PreAuthorize("@commentService.isCommentOwner(#id, authentication.name)")
+    public ResponseEntity<CommentResponse> updateComment(@PathVariable Long id, @Valid @RequestBody CommentRequest request) {
+        // Implementation
+    }
+    
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@commentService.isCommentOwner(#id, authentication.name) or hasRole('ADMIN')")
+    public ResponseEntity<?> deleteComment(@PathVariable Long id) {
+        // Implementation
+    }
+}

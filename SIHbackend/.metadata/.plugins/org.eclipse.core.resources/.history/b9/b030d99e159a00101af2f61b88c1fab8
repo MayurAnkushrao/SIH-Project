@@ -1,0 +1,9 @@
+package com.sih.SIHbackend.enums;
+
+package com.sih.SIHbackend.enums;
+
+public enum UserRole {
+    USER,
+    ADMIN,
+    MODERATOR
+}

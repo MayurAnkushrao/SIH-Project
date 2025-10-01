@@ -1,0 +1,46 @@
+package com.sih.SIHbackend.repository;
+
+import com.sih.SIHbackend.entity.Post;
+import com.sih.SIHbackend.enums.PostStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Repository
+public interface PostRepository extends JpaRepository<Post, Long> {
+
+	// Paginated queries
+	Page<Post> findByStatus(PostStatus status, Pageable pageable);
+
+	Page<Post> findByAuthor(String author, Pageable pageable);
+
+	@Query("SELECT p FROM Post p WHERE p.status = 'ACTIVE' AND p.deadline >= CURRENT_DATE")
+	Page<Post> findActivePosts(Pageable pageable);
+
+	@Query("SELECT p FROM Post p WHERE LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+	Page<Post> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+	// Non-paginated queries
+	List<Post> findByStatus(PostStatus status);
+
+	List<Post> findByAuthor(String author);
+
+	List<Post> findByCreatedById(Long userId);
+
+	List<Post> findByDeadlineBetween(LocalDate startDate, LocalDate endDate);
+
+	@Query("SELECT p FROM Post p WHERE p.deadline < CURRENT_DATE")
+	List<Post> findExpiredPosts();
+
+	@Query("SELECT p FROM Post p WHERE p.status = 'ACTIVE' AND p.deadline >= CURRENT_DATE")
+	List<Post> findActivePostsList();
+
+	@Query("SELECT p FROM Post p LEFT JOIN p.comments c GROUP BY p HAVING COUNT(c) >= :minComments")
+	List<Post> findPostsWithMinComments(@Param("minComments") int minComments);
+}

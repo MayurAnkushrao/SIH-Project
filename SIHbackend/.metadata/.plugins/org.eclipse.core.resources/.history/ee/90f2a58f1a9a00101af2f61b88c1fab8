@@ -1,0 +1,250 @@
+package com.sih.SIHbackend.serviceImpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.sih.SIHbackend.dto.SentimentRequest;
+import com.sih.SIHbackend.dto.SentimentMLResponse;
+import com.sih.SIHbackend.dto.response.SentimentResponse;
+import com.sih.SIHbackend.dto.response.SentimentStatsResponse;
+import com.sih.SIHbackend.entity.Comment;
+import com.sih.SIHbackend.entity.Post;
+import com.sih.SIHbackend.entity.SentimentAnalysis;
+import com.sih.SIHbackend.enums.SentimentType;
+import com.sih.SIHbackend.repository.CommentRepository;
+import com.sih.SIHbackend.repository.PostRepository;
+import com.sih.SIHbackend.repository.SentimentAnalysisRepository;
+import com.sih.SIHbackend.service.SentimentService;
+
+import jakarta.transaction.Transactional;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+public class SentimentServiceImpl implements SentimentService {
+    
+    @Autowired
+    private RestTemplate restTemplate;
+    
+    @Autowired
+    private CommentRepository commentRepository;
+    
+    @Autowired
+    private PostRepository postRepository;
+    
+    @Autowired
+    private SentimentAnalysisRepository sentimentAnalysisRepository;
+    
+    // ML Model API endpoint (your friend's sentiment analysis model)
+    private static final String ML_API_URL = "http://localhost:8080/ml/sentiment";
+    private static final String ML_HEALTH_URL = "http://localhost:8080/ml/health";
+    
+    @Override
+    public SentimentResponse analyzeSentiment(Long postId) {
+        Post post = postRepository.findById(postId)
+            .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
+        
+        List<Comment> comments = commentRepository.findByPost(post);
+        
+        if (comments.isEmpty()) {
+            return createEmptyResponse(post, "No comments available for analysis");
+        }
+        
+        try {
+            // Extract comment texts for ML analysis
+            List<String> commentTexts = comments.stream()
+                .map(Comment::getContent)
+                .collect(Collectors.toList());
+                
+            // API call to sentiment analysis service
+            SentimentRequest mlRequest = new SentimentRequest(commentTexts);
+            ResponseEntity<SentimentMLResponse> mlResponse = 
+                restTemplate.postForEntity(ML_API_URL, mlRequest, SentimentMLResponse.class);
+            
+            if (mlResponse.getBody() == null) {
+                throw new RuntimeException("ML service returned empty response");
+            }
+            
+            // Process results and save to database
+            SentimentAnalysis analysis = processSentimentResults(post, comments, mlResponse.getBody());
+            
+            return convertToResponse(analysis, "Analysis completed successfully");
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to analyze sentiment: " + e.getMessage(), e);
+        }
+    }
+    
+    @Override
+    public SentimentResponse getSentimentResults(Long postId) {
+        Post post = postRepository.findById(postId)
+            .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
+        
+        SentimentAnalysis analysis = sentimentAnalysisRepository.findByPost(post)
+            .orElseThrow(() -> new RuntimeException("No sentiment analysis found for post: " + postId));
+        
+        return convertToResponse(analysis, "Results retrieved successfully");
+    }
+    
+    @Override
+    public SentimentStatsResponse getSentimentStatistics(Long postId) {
+        Post post = postRepository.findById(postId)
+            .orElseThrow(() -> new RuntimeException("Post not found with id: " + postId));
+        
+        SentimentAnalysis analysis = sentimentAnalysisRepository.findByPost(post).orElse(null);
+        
+        if (analysis == null) {
+            return new SentimentStatsResponse(postId, post.getTitle(), 0, null, null, null,
+                BigDecimal.ZERO, "No Analysis", null, false);
+        }
+        
+        // Calculate statistics
+        Double avgPositiveConf = commentRepository.getAverageConfidenceByPostAndSentiment(postId, SentimentType.POSITIVE);
+        Double avgNegativeConf = commentRepository.getAverageConfidenceByPostAndSentiment(postId, SentimentType.NEGATIVE);
+        Double avgNeutralConf = commentRepository.getAverageConfidenceByPostAndSentiment(postId, SentimentType.NEUTRAL);
+        
+        // Find dominant sentiment
+        String dominantSentiment = "NEUTRAL";
+        BigDecimal dominantPercentage = analysis.getNeutralPercentage();
+        
+        if (analysis.getPositivePercentage().compareTo(dominantPercentage) > 0) {
+            dominantSentiment = "POSITIVE";
+            dominantPercentage = analysis.getPositivePercentage();
+        }
+        if (analysis.getNegativePercentage().compareTo(dominantPercentage) > 0) {
+            dominantSentiment = "NEGATIVE";
+            dominantPercentage = analysis.getNegativePercentage();
+        }
+        
+        return new SentimentStatsResponse(postId, post.getTitle(), analysis.getTotalComments(),
+            avgPositiveConf, avgNegativeConf, avgNeutralConf, dominantPercentage,
+            dominantSentiment, analysis.getAnalyzedAt(), true);
+    }
+    
+    @Override
+    public SentimentResponse reanalyzeSentiment(Long postId) {
+        // Delete existing analysis if present
+        sentimentAnalysisRepository.findByPostId(postId).ifPresent(analysis -> {
+            sentimentAnalysisRepository.deleteById(analysis.getId());
+        });
+        
+        // Perform fresh analysis
+        return analyzeSentiment(postId);
+    }
+    
+    @Override
+    public List<SentimentResponse> getAllSentimentResults(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return sentimentAnalysisRepository.findAll(pageable).getContent().stream()
+            .map(analysis -> convertToResponse(analysis, "Retrieved"))
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public void deleteSentimentResults(Long postId) {
+        SentimentAnalysis analysis = sentimentAnalysisRepository.findByPostId(postId)
+            .orElseThrow(() -> new RuntimeException("No sentiment analysis found for post: " + postId));
+        
+        sentimentAnalysisRepository.deleteById(analysis.getId());
+    }
+    
+    @Override
+    public boolean checkMLModelHealth() {
+        try {
+            ResponseEntity<String> response = restTemplate.getForEntity(ML_HEALTH_URL, String.class);
+            return response.getStatusCode().is2xxSuccessful();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    private SentimentAnalysis processSentimentResults(Post post, List<Comment> comments, SentimentMLResponse mlResponse) {
+        // Update individual comments with sentiment analysis results
+        updateCommentSentiments(comments, mlResponse);
+        
+        // Create or update sentiment analysis
+        SentimentAnalysis analysis = sentimentAnalysisRepository.findByPost(post)
+            .orElse(new SentimentAnalysis());
+        
+        analysis.setPost(post);
+        analysis.setTotalComments(comments.size());
+        analysis.setAnalyzedAt(LocalDateTime.now());
+        
+        // Set counts from ML response
+        analysis.setPositiveCount(mlResponse.getPositiveCount());
+        analysis.setNegativeCount(mlResponse.getNegativeCount());
+        analysis.setNeutralCount(mlResponse.getNeutralCount());
+        
+        // Calculate percentages
+        analysis.calculatePercentages();
+        
+        // Set summary and keywords from ML response
+        analysis.setSummary(mlResponse.getSummary());
+        analysis.setKeywords(String.join(", ", mlResponse.getKeywords()));
+        
+        return sentimentAnalysisRepository.save(analysis);
+    }
+    
+    private void updateCommentSentiments(List<Comment> comments, SentimentMLResponse mlResponse) {
+        List<SentimentMLResponse.CommentSentiment> results = mlResponse.getResults();
+        
+        for (int i = 0; i < comments.size() && i < results.size(); i++) {
+            Comment comment = comments.get(i);
+            SentimentMLResponse.CommentSentiment result = results.get(i);
+            
+            comment.setSentiment(SentimentType.valueOf(result.getSentiment().toUpperCase()));
+            comment.setConfidenceScore(BigDecimal.valueOf(result.getConfidence()));
+            
+            commentRepository.save(comment);
+        }
+    }
+    
+    private SentimentResponse createEmptyResponse(Post post, String message) {
+        return new SentimentResponse(null, post.getId(), post.getTitle(), 0, 0, 0, 0,
+            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, SentimentType.NEUTRAL,
+            "No comments to analyze", Arrays.asList(), LocalDateTime.now(),
+            "EMPTY", message);
+    }
+    
+    private SentimentResponse convertToResponse(SentimentAnalysis analysis, String message) {
+        List<String> keywords = analysis.getKeywords() != null ? 
+            Arrays.asList(analysis.getKeywords().split(", ")) : Arrays.asList();
+        
+        // Determine overall sentiment
+        SentimentType overallSentiment = SentimentType.NEUTRAL;
+        BigDecimal maxPercentage = analysis.getNeutralPercentage();
+        
+        if (analysis.getPositivePercentage().compareTo(maxPercentage) > 0) {
+            overallSentiment = SentimentType.POSITIVE;
+        } else if (analysis.getNegativePercentage().compareTo(maxPercentage) > 0) {
+            overallSentiment = SentimentType.NEGATIVE;
+        }
+        
+        return new SentimentResponse(
+            analysis.getId(),
+            analysis.getPostId(),
+            analysis.getPost().getTitle(),
+            analysis.getTotalComments(),
+            analysis.getPositiveCount(),
+            analysis.getNegativeCount(),
+            analysis.getNeutralCount(),
+            analysis.getPositivePercentage(),
+            analysis.getNegativePercentage(),
+            analysis.getNeutralPercentage(),
+            overallSentiment,
+            analysis.getSummary(),
+            keywords,
+            analysis.getAnalyzedAt(),
+            "SUCCESS",
+            message
+        );
+    }
+}

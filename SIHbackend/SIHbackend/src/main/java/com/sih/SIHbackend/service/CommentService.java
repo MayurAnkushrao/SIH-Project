@@ -1,0 +1,19 @@
+package com.sih.SIHbackend.service;
+
+import com.sih.SIHbackend.dto.request.CommentRequest;
+import com.sih.SIHbackend.dto.response.CommentResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+
+public interface CommentService {
+    CommentResponse createComment(CommentRequest request);
+    CommentResponse getCommentById(Long id);
+    Page<CommentResponse> getCommentsByPostId(Long postId, Pageable pageable);
+    List<CommentResponse> getCommentsByUserId(Long userId);
+    CommentResponse updateComment(Long id, CommentRequest request);
+    void deleteComment(Long id);
+    boolean isCommentOwner(Long commentId, String userEmail);
+    boolean isUserOwner(Long userId, String userEmail);
+}

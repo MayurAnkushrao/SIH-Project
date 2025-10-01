@@ -1,0 +1,148 @@
+package com.sih.SIHbackend.dto.response;
+
+import com.sih.SIHbackend.enums.SentimentType;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+public class SentimentResponse {
+    
+    private Long analysisId;
+    private Long postId;
+    private String postTitle;
+    private Integer totalComments;
+    private Integer positiveCount;
+    private Integer negativeCount;
+    private Integer neutralCount;
+    private BigDecimal positivePercentage;
+    private BigDecimal negativePercentage;
+    private BigDecimal neutralPercentage;
+    private SentimentType overallSentiment;
+    private String summary;
+    private List<String> keywords;
+    private LocalDateTime analyzedAt;
+    private String status;
+    private String message;
+    private List<CommentSentimentInfo> individualComments;
+    
+    // Default constructor
+    public SentimentResponse() {}
+    
+    // Constructor for error responses
+    public SentimentResponse(Long postId, String status, String message) {
+        this.postId = postId;
+        this.status = status;
+        this.message = message;
+    }
+    
+    // Full constructor
+    public SentimentResponse(Long analysisId, Long postId, String postTitle,
+                           Integer totalComments, Integer positiveCount, Integer negativeCount,
+                           Integer neutralCount, BigDecimal positivePercentage, BigDecimal negativePercentage,
+                           BigDecimal neutralPercentage, SentimentType overallSentiment,
+                           String summary, List<String> keywords, LocalDateTime analyzedAt,
+                           String status, String message) {
+        this.analysisId = analysisId;
+        this.postId = postId;
+        this.postTitle = postTitle;
+        this.totalComments = totalComments;
+        this.positiveCount = positiveCount;
+        this.negativeCount = negativeCount;
+        this.neutralCount = neutralCount;
+        this.positivePercentage = positivePercentage;
+        this.negativePercentage = negativePercentage;
+        this.neutralPercentage = neutralPercentage;
+        this.overallSentiment = overallSentiment;
+        this.summary = summary;
+        this.keywords = keywords;
+        this.analyzedAt = analyzedAt;
+        this.status = status;
+        this.message = message;
+    }
+    
+    // Getters and Setters
+    public Long getAnalysisId() { return analysisId; }
+    public void setAnalysisId(Long analysisId) { this.analysisId = analysisId; }
+    
+    public Long getPostId() { return postId; }
+    public void setPostId(Long postId) { this.postId = postId; }
+    
+    public String getPostTitle() { return postTitle; }
+    public void setPostTitle(String postTitle) { this.postTitle = postTitle; }
+    
+    public Integer getTotalComments() { return totalComments; }
+    public void setTotalComments(Integer totalComments) { this.totalComments = totalComments; }
+    
+    public Integer getPositiveCount() { return positiveCount; }
+    public void setPositiveCount(Integer positiveCount) { this.positiveCount = positiveCount; }
+    
+    public Integer getNegativeCount() { return negativeCount; }
+    public void setNegativeCount(Integer negativeCount) { this.negativeCount = negativeCount; }
+    
+    public Integer getNeutralCount() { return neutralCount; }
+    public void setNeutralCount(Integer neutralCount) { this.neutralCount = neutralCount; }
+    
+    public BigDecimal getPositivePercentage() { return positivePercentage; }
+    public void setPositivePercentage(BigDecimal positivePercentage) { this.positivePercentage = positivePercentage; }
+    
+    public BigDecimal getNegativePercentage() { return negativePercentage; }
+    public void setNegativePercentage(BigDecimal negativePercentage) { this.negativePercentage = negativePercentage; }
+    
+    public BigDecimal getNeutralPercentage() { return neutralPercentage; }
+    public void setNeutralPercentage(BigDecimal neutralPercentage) { this.neutralPercentage = neutralPercentage; }
+    
+    public SentimentType getOverallSentiment() { return overallSentiment; }
+    public void setOverallSentiment(SentimentType overallSentiment) { this.overallSentiment = overallSentiment; }
+    
+    public String getSummary() { return summary; }
+    public void setSummary(String summary) { this.summary = summary; }
+    
+    public List<String> getKeywords() { return keywords; }
+    public void setKeywords(List<String> keywords) { this.keywords = keywords; }
+    
+    public LocalDateTime getAnalyzedAt() { return analyzedAt; }
+    public void setAnalyzedAt(LocalDateTime analyzedAt) { this.analyzedAt = analyzedAt; }
+    
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+    
+    public List<CommentSentimentInfo> getIndividualComments() { return individualComments; }
+    public void setIndividualComments(List<CommentSentimentInfo> individualComments) { this.individualComments = individualComments; }
+    
+    // Inner class for individual comment sentiment info
+    public static class CommentSentimentInfo {
+        private Long commentId;
+        private String content;
+        private SentimentType sentiment;
+        private BigDecimal confidence;
+        private String userName;
+        
+        public CommentSentimentInfo(Long commentId, String content, SentimentType sentiment, 
+                                   BigDecimal confidence, String userName) {
+            this.commentId = commentId;
+            this.content = content;
+            this.sentiment = sentiment;
+            this.confidence = confidence;
+            this.userName = userName;
+        }
+        
+        // Getters and setters
+        public Long getCommentId() { return commentId; }
+        public void setCommentId(Long commentId) { this.commentId = commentId; }
+        
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+        
+        public SentimentType getSentiment() { return sentiment; }
+        public void setSentiment(SentimentType sentiment) { this.sentiment = sentiment; }
+        
+        public BigDecimal getConfidence() { return confidence; }
+        public void setConfidence(BigDecimal confidence) { this.confidence = confidence; }
+        
+        public String getUserName() { return userName; }
+        public void setUserName(String userName) { this.userName = userName; }
+    }
+}

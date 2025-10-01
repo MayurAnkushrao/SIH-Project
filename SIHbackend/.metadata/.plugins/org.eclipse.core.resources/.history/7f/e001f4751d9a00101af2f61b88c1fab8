@@ -1,0 +1,5 @@
+package com.sih.SIHbackend.dto.response;
+
+public class MLPredictResponse {
+
+}

@@ -1,0 +1,130 @@
+package com.sih.SIHbackend.serviceImpl;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import com.sih.SIHbackend.dto.request.CommentRequest;
+import com.sih.SIHbackend.dto.response.CommentResponse;
+import com.sih.SIHbackend.entity.Comment;
+import com.sih.SIHbackend.entity.Post;
+import com.sih.SIHbackend.repository.CommentRepository;
+import com.sih.SIHbackend.repository.PostRepository;
+import com.sih.SIHbackend.repository.UserRepository;
+import com.sih.SIHbackend.service.CommentService;
+
+import jakarta.transaction.Transactional;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+public class CommentServiceImpl implements CommentService {
+
+    @Autowired
+    private CommentRepository commentRepository;
+
+    @Autowired
+    private PostRepository postRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Override
+    public CommentResponse createComment(CommentRequest request) {
+        // No user email, so user is not linked
+        Post post = postRepository.findById(request.getPostId())
+            .orElseThrow(() -> new RuntimeException("Post not found"));
+
+        Comment comment = new Comment();
+        comment.setContent(request.getContent());
+        comment.setPost(post);
+        comment.setUser(null); // No user linked
+
+        Comment savedComment = commentRepository.save(comment);
+        return convertToResponse(savedComment);
+    }
+
+    @Override
+    public CommentResponse getCommentById(Long id) {
+        Comment comment = commentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Comment not found"));
+        return convertToResponse(comment);
+    }
+
+    @Override
+    public Page<CommentResponse> getCommentsByPostId(Long postId, Pageable pageable) {
+        Page<Comment> comments = commentRepository.findByPostId(postId, pageable);
+        List<CommentResponse> responses = comments.getContent().stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+        return new PageImpl<>(responses, pageable, comments.getTotalElements());
+    }
+
+    @Override
+    public List<CommentResponse> getCommentsByUserId(Long userId) {
+        // Since no user linked, this may always return empty
+        List<Comment> comments = commentRepository.findByUserId(userId);
+        return comments.stream()
+            .map(this::convertToResponse)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    public CommentResponse updateComment(Long id, CommentRequest request) {
+        Comment comment = commentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Comment not found"));
+
+        comment.setContent(request.getContent());
+        Comment updatedComment = commentRepository.save(comment);
+        return convertToResponse(updatedComment);
+    }
+
+    @Override
+    public void deleteComment(Long id) {
+        if (!commentRepository.existsById(id)) {
+            throw new RuntimeException("Comment not found");
+        }
+        commentRepository.deleteById(id);
+    }
+
+    @Override
+    public boolean isCommentOwner(Long commentId, String userEmail) {
+        // No authentication, return true or false as appropriate, here true to allow all
+        return true;
+    }
+
+    @Override
+    public boolean isUserOwner(Long userId, String userEmail) {
+        // No authentication, return true or false as appropriate, here true to allow all
+        return true;
+    }
+
+    private CommentResponse convertToResponse(Comment comment) {
+        // Handle null user safely
+        Long userId = null;
+        String userName = null;
+        String userEmail = null;
+        if (comment.getUser() != null) {
+            userId = comment.getUser().getId();
+            userName = comment.getUser().getName();
+            userEmail = comment.getUser().getEmail();
+        }
+
+        return new CommentResponse(
+            comment.getId(),
+            comment.getPost().getId(),
+            comment.getPost().getTitle(),
+            userId,
+            userName,
+            userEmail,
+            comment.getContent(),
+            comment.getSentiment(),
+            comment.getConfidenceScore(),
+            comment.getCreatedAt(),
+            comment.getUpdatedAt()
+        );
+    }
+}

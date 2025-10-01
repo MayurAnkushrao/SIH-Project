@@ -1,0 +1,205 @@
+package com.sih.SIHbackend.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import com.sih.SIHbackend.dto.request.PostRequest;
+import com.sih.SIHbackend.dto.response.PostResponse;
+import com.sih.SIHbackend.enums.PostStatus;
+import com.sih.SIHbackend.service.PostService;
+
+import jakarta.validation.Valid;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/posts")
+@CrossOrigin(origins = "*")
+@Validated
+public class PostController {
+
+	@Autowired
+	private PostService postService;
+
+	@GetMapping
+	public ResponseEntity<List<PostResponse>> getAllPosts(@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size, @RequestParam(defaultValue = "createdAt") String sortBy,
+			@RequestParam(defaultValue = "desc") String sortDir, @RequestParam(required = false) PostStatus status,
+			@RequestParam(required = false) String author, @RequestParam(required = false) String search) {
+		try {
+			Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+			Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+			Page<PostResponse> posts;
+			if (search != null && !search.trim().isEmpty()) {
+				posts = postService.searchPosts(search.trim(), pageable);
+			} else if (status != null) {
+				posts = postService.getPostsByStatus(status, pageable);
+			} else if (author != null && !author.trim().isEmpty()) {
+				posts = postService.getPostsByAuthor(author.trim(), pageable);
+			} else {
+				posts = postService.getAllPosts(pageable);
+			}
+
+			return ResponseEntity.ok(posts.getContent());
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@GetMapping("/{id}")
+	public ResponseEntity<PostResponse> getPostById(@PathVariable Long id) {
+		try {
+			PostResponse post = postService.getPostById(id);
+			return ResponseEntity.ok(post);
+		} catch (RuntimeException e) {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
+	@GetMapping("/active")
+	public ResponseEntity<List<PostResponse>> getActivePosts(@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		try {
+			Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+			Page<PostResponse> posts = postService.getActivePosts(pageable);
+			return ResponseEntity.ok(posts.getContent());
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@GetMapping("/expired")
+	// @PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<List<PostResponse>> getExpiredPosts() {
+		try {
+			List<PostResponse> posts = postService.getExpiredPosts();
+			return ResponseEntity.ok(posts);
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	// In PostController.java
+
+	/*@PostMapping
+	public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest request // only the DTO parameter
+	) {
+		try {
+			PostResponse post = postService.createPost(request, null); // pass null or handle accordingly
+			return ResponseEntity.status(HttpStatus.CREATED).body(post);
+		} catch (RuntimeException e) {
+			return ResponseEntity.badRequest().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}*/
+	@PostMapping
+	public ResponseEntity<PostResponse> createPost(
+	    @Valid @RequestBody PostRequest request,
+	    Authentication authentication
+	) {
+	    try {
+	        // Extract the user’s email (or username) from the Authentication object
+	        String userEmail = authentication.getName();
+
+	        // Call service with both parameters
+	        PostResponse post = postService.createPost(request, userEmail);
+
+	        return ResponseEntity.status(HttpStatus.CREATED).body(post);
+	    } catch (RuntimeException e) {
+	        return ResponseEntity.badRequest().build();
+	    } catch (Exception e) {
+	        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+	    }
+	}
+
+
+	@PutMapping("/{id}")
+	// @PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<PostResponse> updatePost(@PathVariable Long id, @Valid @RequestBody PostRequest request,
+			Authentication authentication) {
+		try {
+			String userEmail = authentication.getName();
+			PostResponse post = postService.updatePost(id, request, userEmail);
+			return ResponseEntity.ok(post);
+		} catch (RuntimeException e) {
+			return ResponseEntity.notFound().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@PatchMapping("/{id}/status")
+	// @PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<PostResponse> updatePostStatus(@PathVariable Long id, @RequestParam PostStatus status,
+			Authentication authentication) {
+		try {
+			PostResponse post = postService.updatePostStatus(id, status);
+			return ResponseEntity.ok(post);
+		} catch (RuntimeException e) {
+			return ResponseEntity.notFound().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@DeleteMapping("/{id}")
+	// @PreAuthorize("hasRole('ADMIN')")
+	public ResponseEntity<?> deletePost(@PathVariable Long id) {
+		try {
+			postService.deletePost(id);
+			return ResponseEntity.ok().body(new DeleteResponse("Post deleted successfully", true));
+		} catch (RuntimeException e) {
+			return ResponseEntity.notFound().build();
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+		}
+	}
+
+	@GetMapping("/{id}/comments-count")
+	public ResponseEntity<Integer> getCommentsCount(@PathVariable Long id) {
+		try {
+			int count = postService.getCommentsCount(id);
+			return ResponseEntity.ok(count);
+		} catch (RuntimeException e) {
+			return ResponseEntity.notFound().build();
+		}
+	}
+
+	// Inner class for delete response
+	public static class DeleteResponse {
+		private String message;
+		private boolean success;
+
+		public DeleteResponse(String message, boolean success) {
+			this.message = message;
+			this.success = success;
+		}
+
+		// Getters and setters
+		public String getMessage() {
+			return message;
+		}
+
+		public void setMessage(String message) {
+			this.message = message;
+		}
+
+		public boolean isSuccess() {
+			return success;
+		}
+
+		public void setSuccess(boolean success) {
+			this.success = success;
+		}
+	}
+}

@@ -1,0 +1,11 @@
+package com.sih.SIHbackend.service;
+
+import com.sih.SIHbackend.entity.SentimentAnalysis;
+import java.util.List;
+
+public interface SentimentService {
+    SentimentAnalysis analyzeSentiment(Long postId);
+    SentimentAnalysis getSentimentByPostId(Long postId);
+    List<SentimentAnalysis> getAllSentimentAnalyses();
+    void deleteSentimentAnalysis(Long analysisId);
+}

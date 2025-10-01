@@ -1,0 +1,46 @@
+package com.sih.SIHbackend.repository;
+
+import com.sih.SIHbackend.entity.Comment;
+import com.sih.SIHbackend.enums.SentimentType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface CommentRepository extends JpaRepository<Comment, Long> {
+    
+    // Paginated comments by post ID
+    @Query("SELECT c FROM Comment c WHERE c.post.id = :postId")
+    Page<Comment> findByPostId(@Param("postId") Long postId, Pageable pageable);
+    
+    // Find comments by post ID (list)
+    @Query("SELECT c FROM Comment c WHERE c.post.id = :postId")
+    List<Comment> findByPostId(@Param("postId") Long postId);
+    
+    // Find comments by user ID
+    @Query("SELECT c FROM Comment c WHERE c.user.id = :userId")
+    List<Comment> findByUserId(@Param("userId") Long userId);
+    
+    // Find comments by sentiment type
+    List<Comment> findBySentiment(SentimentType sentiment);
+    
+    // Count comments by post and sentiment
+    @Query("SELECT COUNT(c) FROM Comment c WHERE c.post.id = :postId AND c.sentiment = :sentiment")
+    Long countByPostIdAndSentiment(@Param("postId") Long postId, @Param("sentiment") SentimentType sentiment);
+    
+    // Get average confidence score
+    @Query("SELECT AVG(c.confidenceScore) FROM Comment c WHERE c.post.id = :postId AND c.sentiment = :sentiment")
+    Double getAverageConfidenceByPostAndSentiment(@Param("postId") Long postId, @Param("sentiment") SentimentType sentiment);
+    
+ // ✅ Make sure this method exists
+    @Query("SELECT c FROM Comment c WHERE c.post.id = :postId")
+    List<Comment> findByPostId(@Param("postId") Long postId);
+    
+    // Alternative: If you want to use entity-based query
+    List<Comment> findByPost(com.sih.SIHbackend.entity.Post post);
+   }

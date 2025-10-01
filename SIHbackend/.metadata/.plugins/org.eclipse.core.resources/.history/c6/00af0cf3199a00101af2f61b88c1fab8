@@ -1,0 +1,18 @@
+package com.sih.SIHbackend.controller;
+
+@RestController
+@RequestMapping("/api/sentiment")
+@CrossOrigin(origins = "*")
+public class SentimentController {
+    
+    @PostMapping("/analyze/{postId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SentimentResponse> analyzeSentiment(@PathVariable Long postId) {
+        // Implementation - integrate with your friend's ML model
+    }
+    
+    @GetMapping("/results/{postId}")
+    public ResponseEntity<SentimentResponse> getSentimentResults(@PathVariable Long postId) {
+        // Implementation
+    }
+}

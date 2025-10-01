@@ -1,0 +1,49 @@
+package com.sih.SIHbackend.dto.response;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public class MLPredictResponse {
+    
+    @JsonProperty("confidence")
+    private Double confidence;
+    
+    @JsonProperty("confidence_category")
+    private String confidenceCategory;
+    
+    @JsonProperty("input_text")
+    private String inputText;
+    
+    @JsonProperty("predicted_label")
+    private String predictedLabel;
+
+    // New field for summary text from /summarize endpoint
+    @JsonProperty("summary")
+    private String summary;
+    
+    // Getters and Setters including for summary
+    public Double getConfidence() { return confidence; }
+    public void setConfidence(Double confidence) { this.confidence = confidence; }
+
+    public String getConfidenceCategory() { return confidenceCategory; }
+    public void setConfidenceCategory(String confidenceCategory) { this.confidenceCategory = confidenceCategory; }
+
+    public String getInputText() { return inputText; }
+    public void setInputText(String inputText) { this.inputText = inputText; }
+
+    public String getPredictedLabel() { return predictedLabel; }
+    public void setPredictedLabel(String predictedLabel) { this.predictedLabel = predictedLabel; }
+
+    public String getSummary() { return summary; }
+    public void setSummary(String summary) { this.summary = summary; }
+
+    @Override
+    public String toString() {
+        return "MLPredictResponse{" +
+               "confidence=" + confidence +
+               ", confidenceCategory='" + confidenceCategory + '\'' +
+               ", inputText='" + inputText + '\'' +
+               ", predictedLabel='" + predictedLabel + '\'' +
+               ", summary='" + summary + '\'' +
+               '}';
+    }
+}

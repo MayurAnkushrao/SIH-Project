@@ -1,0 +1,127 @@
+package com.sih.SIHbackend.entity;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "sentiment_analysis")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class SentimentAnalysis {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    private Post post;
+    
+    @Column(name = "total_comments")
+    private Integer totalComments = 0;
+    
+    @Column(name = "positive_count")
+    private Integer positiveCount = 0;
+    
+    @Column(name = "negative_count")
+    private Integer negativeCount = 0;
+    
+    @Column(name = "neutral_count")
+    private Integer neutralCount = 0;
+    
+    @Column(name = "positive_percentage", precision = 5, scale = 2)
+    private BigDecimal positivePercentage = BigDecimal.ZERO;
+    
+    @Column(name = "negative_percentage", precision = 5, scale = 2)
+    private BigDecimal negativePercentage = BigDecimal.ZERO;
+    
+    @Column(name = "neutral_percentage", precision = 5, scale = 2)
+    private BigDecimal neutralPercentage = BigDecimal.ZERO;
+    
+    @Lob
+    private String summary;
+    
+    @Lob
+    private String keywords;
+    
+    @CreationTimestamp
+    @Column(name = "analyzed_at")
+    private LocalDateTime analyzedAt;
+    
+    // ✅ Remove the manual no-args constructor since you have @NoArgsConstructor
+    // The @NoArgsConstructor from Lombok will handle initialization of default values
+    
+    // Constructor with Post - keep this for convenience
+    public SentimentAnalysis(Post post, Integer totalComments) {
+        this.post = post;
+        this.totalComments = totalComments != null ? totalComments : 0;
+        this.positiveCount = 0;
+        this.negativeCount = 0;
+        this.neutralCount = 0;
+        this.positivePercentage = BigDecimal.ZERO;
+        this.negativePercentage = BigDecimal.ZERO;
+        this.neutralPercentage = BigDecimal.ZERO;
+        this.analyzedAt = LocalDateTime.now();
+    }
+    
+    // ✅ Alternative: If you prefer manual constructor control, remove @NoArgsConstructor and use this
+    /*
+    public SentimentAnalysis() {
+        this.totalComments = 0;
+        this.positiveCount = 0;
+        this.negativeCount = 0;
+        this.neutralCount = 0;
+        this.positivePercentage = BigDecimal.ZERO;
+        this.negativePercentage = BigDecimal.ZERO;
+        this.neutralPercentage = BigDecimal.ZERO;
+    }
+    */
+    
+    // Utility method to calculate percentages using RoundingMode enum
+    public void calculatePercentages() {
+        if (totalComments != null && totalComments > 0) {
+            BigDecimal total = new BigDecimal(totalComments);
+            this.positivePercentage = new BigDecimal(positiveCount != null ? positiveCount : 0)
+                .multiply(new BigDecimal("100"))
+                .divide(total, 2, RoundingMode.HALF_UP);
+            this.negativePercentage = new BigDecimal(negativeCount != null ? negativeCount : 0)
+                .multiply(new BigDecimal("100"))
+                .divide(total, 2, RoundingMode.HALF_UP);
+            this.neutralPercentage = new BigDecimal(neutralCount != null ? neutralCount : 0)
+                .multiply(new BigDecimal("100"))
+                .divide(total, 2, RoundingMode.HALF_UP);
+        } else {
+            this.positivePercentage = BigDecimal.ZERO;
+            this.negativePercentage = BigDecimal.ZERO;
+            this.neutralPercentage = BigDecimal.ZERO;
+        }
+    }
+    
+    // Convenience method to get post ID
+    public Long getPostId() {
+        return post != null ? post.getId() : null;
+    }
+    
+    // Additional utility method for better percentage calculation with validation
+    public void calculateAndValidatePercentages() {
+        calculatePercentages();
+        
+        // Ensure percentages sum to approximately 100% (allowing for rounding)
+        if (totalComments != null && totalComments > 0) {
+            BigDecimal sum = positivePercentage.add(negativePercentage).add(neutralPercentage);
+            if (sum.compareTo(new BigDecimal("100.00")) != 0) {
+                // Adjust the largest percentage to make sum exactly 100%
+                adjustPercentagesToSum100();
+            }
+        }
+    }
+    
+    private void adjustPercentagesToSum100() {
+        BigDecimal currentSum = positivePercentage.add(negativePercentage).add(neutralPercentage);

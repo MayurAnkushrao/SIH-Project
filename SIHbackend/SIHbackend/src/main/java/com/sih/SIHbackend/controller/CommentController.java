@@ -1,0 +1,129 @@
+package com.sih.SIHbackend.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import com.sih.SIHbackend.dto.request.CommentRequest;
+import com.sih.SIHbackend.dto.response.CommentResponse;
+import com.sih.SIHbackend.service.CommentService;
+
+import jakarta.validation.Valid;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/comments")
+@CrossOrigin(origins = "*")
+@Validated
+public class CommentController {
+
+    @Autowired
+    private CommentService commentService;
+
+    @GetMapping("/post/{postId}")
+    public ResponseEntity<List<CommentResponse>> getCommentsByPost(
+            @PathVariable Long postId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        try {
+            Sort.Direction direction = sortDir.equalsIgnoreCase("desc") ?
+                    Sort.Direction.DESC : Sort.Direction.ASC;
+            Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+
+            Page<CommentResponse> comments = commentService.getCommentsByPostId(postId, pageable);
+            return ResponseEntity.ok(comments.getContent());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CommentResponse> getCommentById(@PathVariable Long id) {
+        try {
+            CommentResponse comment = commentService.getCommentById(id);
+            return ResponseEntity.ok(comment);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PostMapping
+    // @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<CommentResponse> createComment(
+            @Valid @RequestBody CommentRequest request) {
+        try {
+            CommentResponse comment = commentService.createComment(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(comment);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PutMapping("/{id}")
+    // @PreAuthorize("@commentService.isCommentOwner(#id, authentication.name) or hasRole('ADMIN')")
+    public ResponseEntity<CommentResponse> updateComment(
+            @PathVariable Long id,
+            @Valid @RequestBody CommentRequest request) {
+        try {
+            CommentResponse comment = commentService.updateComment(id, request);
+            return ResponseEntity.ok(comment);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    // @PreAuthorize("@commentService.isCommentOwner(#id, authentication.name) or hasRole('ADMIN')")
+    public ResponseEntity<?> deleteComment(@PathVariable Long id) {
+        try {
+            commentService.deleteComment(id);
+            return ResponseEntity.ok().body(new DeleteResponse("Comment deleted successfully", true));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/user/{userId}")
+    // @PreAuthorize("@commentService.isUserOwner(#userId, authentication.name) or hasRole('ADMIN')")
+    public ResponseEntity<List<CommentResponse>> getCommentsByUser(@PathVariable Long userId) {
+        try {
+            List<CommentResponse> comments = commentService.getCommentsByUserId(userId);
+            return ResponseEntity.ok(comments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Inner class for delete response
+    public static class DeleteResponse {
+        private String message;
+        private boolean success;
+
+        public DeleteResponse(String message, boolean success) {
+            this.message = message;
+            this.success = success;
+        }
+
+        // Getters and setters
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+        public boolean isSuccess() { return success; }
+        public void setSuccess(boolean success) { this.success = success; }
+    }
+}
